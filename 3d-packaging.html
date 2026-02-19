@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 包装设计器 | Pocket Packet</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        /* ===== Control Panel ===== */
+        .control-panel {
+            position: fixed;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 100;
+            background: rgba(18, 18, 18, 0.85);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 24px;
+            width: 280px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .control-panel::-webkit-scrollbar { width: 4px; }
+        .control-panel::-webkit-scrollbar-track { background: transparent; }
+        .control-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #fff 0%, #888 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.4);
+            margin-bottom: 12px;
+            margin-top: 20px;
+        }
+
+        .section-label:first-of-type { margin-top: 0; }
+
+        /* Color Grid */
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .color-swatch {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 12px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.15);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .color-swatch.active {
+            border-color: #fff;
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.2);
+        }
+
+        .color-swatch.active::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+
+        /* Custom Color */
+        .custom-color-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .custom-color-input {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+
+        .custom-color-input::-webkit-color-swatch-wrapper { padding: 0; }
+        .custom-color-input::-webkit-color-swatch { border: none; border-radius: 10px; }
+
+        .custom-color-label {
+            font-size: 13px;
+            color: rgba(255,255,255,0.6);
+        }
+
+        /* Texture Buttons */
+        .texture-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .texture-btn {
+            padding: 10px 8px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.04);
+            color: rgba(255,255,255,0.7);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .texture-btn:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.2);
+            color: #fff;
+        }
+
+        .texture-btn.active {
+            background: rgba(255,255,255,0.12);
+            border-color: rgba(255,255,255,0.3);
+            color: #fff;
+        }
+
+        /* Text Input */
+        .text-input-group {
+            margin-top: 12px;
+        }
+
+        .text-input {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.04);
+            color: #fff;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .text-input:focus {
+            border-color: rgba(255,255,255,0.3);
+        }
+
+        .text-input::placeholder {
+            color: rgba(255,255,255,0.25);
+        }
+
+        /* Background buttons */
+        .bg-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .bg-btn {
+            padding: 10px 8px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.04);
+            color: rgba(255,255,255,0.7);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .bg-btn:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.2);
+            color: #fff;
+        }
+
+        .bg-btn.active {
+            background: rgba(255,255,255,0.12);
+            border-color: rgba(255,255,255,0.3);
+            color: #fff;
+        }
+
+        /* Toggle Switch */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 12px;
+        }
+
+        .toggle-label {
+            font-size: 13px;
+            color: rgba(255,255,255,0.6);
+        }
+
+        .toggle-switch {
+            width: 44px;
+            height: 24px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            cursor: pointer;
+            position: relative;
+            transition: background 0.2s;
+        }
+
+        .toggle-switch.active {
+            background: rgba(100, 200, 120, 0.5);
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(20px);
+        }
+
+        /* Shape Buttons */
+        .shape-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .shape-btn {
+            padding: 10px 6px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.04);
+            color: rgba(255,255,255,0.7);
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .shape-btn:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.2);
+            color: #fff;
+        }
+
+        .shape-btn.active {
+            background: rgba(255,255,255,0.12);
+            border-color: rgba(255,255,255,0.3);
+            color: #fff;
+        }
+
+        /* Divider */
+        .divider {
+            height: 1px;
+            background: rgba(255,255,255,0.06);
+            margin: 16px 0;
+        }
+
+        /* Logo */
+        .logo {
+            position: fixed;
+            top: 24px;
+            left: 32px;
+            z-index: 100;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            color: rgba(255,255,255,0.9);
+        }
+
+        .logo span {
+            font-weight: 300;
+            color: rgba(255,255,255,0.4);
+        }
+
+        /* Instructions */
+        .instructions {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            font-size: 12px;
+            color: rgba(255,255,255,0.25);
+            text-align: center;
+            pointer-events: none;
+        }
+
+        /* Screenshot button */
+        .screenshot-btn {
+            width: 100%;
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.8);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .screenshot-btn:hover {
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .control-panel {
+                right: 12px;
+                width: 240px;
+                padding: 16px;
+                max-height: 75vh;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .control-panel {
+                right: 8px;
+                left: 8px;
+                bottom: 8px;
+                top: auto;
+                transform: none;
+                width: auto;
+                max-height: 45vh;
+                border-radius: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="logo">Pocket Packet <span>3D</span></div>
+
+<div id="canvas-container"></div>
+
+<div class="control-panel">
+    <div class="panel-title">包装设计器</div>
+
+    <div class="section-label">包装形状</div>
+    <div class="shape-grid" id="shapeGrid">
+        <div class="shape-btn active" data-shape="box">方盒</div>
+        <div class="shape-btn" data-shape="cylinder">圆筒</div>
+        <div class="shape-btn" data-shape="bag">袋装</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">包装颜色</div>
+    <div class="color-grid" id="colorGrid"></div>
+    <div class="custom-color-row">
+        <input type="color" class="custom-color-input" id="customColor" value="#4A90D9">
+        <span class="custom-color-label">自定义颜色</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">纹理贴图</div>
+    <div class="texture-grid" id="textureGrid">
+        <div class="texture-btn active" data-texture="none">无纹理</div>
+        <div class="texture-btn" data-texture="stripes">条纹</div>
+        <div class="texture-btn" data-texture="dots">波点</div>
+        <div class="texture-btn" data-texture="grid">网格</div>
+        <div class="texture-btn" data-texture="gradient">渐变</div>
+        <div class="texture-btn" data-texture="geometric">几何</div>
+    </div>
+
+    <div class="text-input-group">
+        <input type="text" class="text-input" id="brandText" placeholder="输入品牌名称..." maxlength="20">
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">场景背景</div>
+    <div class="bg-grid" id="bgGrid">
+        <div class="bg-btn active" data-bg="studio">工作室</div>
+        <div class="bg-btn" data-bg="kitchen">厨房</div>
+        <div class="bg-btn" data-bg="nature">自然</div>
+        <div class="bg-btn" data-bg="minimal">极简</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="toggle-row">
+        <span class="toggle-label">自动旋转</span>
+        <div class="toggle-switch active" id="autoRotateToggle"></div>
+    </div>
+
+    <button class="screenshot-btn" id="screenshotBtn">📸 截图导出</button>
+</div>
+
+<div class="instructions">拖拽旋转 · 滚轮缩放 · 右键平移</div>
+
+<!-- Three.js via ES Module Import Map -->
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+(function() {
+    'use strict';
+
+    // ===== Config =====
+    const COLORS = [
+        { name: '珊瑚红', hex: '#E8634A' },
+        { name: '琥珀黄', hex: '#E8A84A' },
+        { name: '翠绿', hex: '#4AE88A' },
+        { name: '天蓝', hex: '#4A90D9' },
+        { name: '薰衣草', hex: '#9B6AE8' },
+        { name: '玫瑰粉', hex: '#E86A9B' },
+        { name: '象牙白', hex: '#F5F0E8' },
+        { name: '深空灰', hex: '#2C2C2E' },
+        { name: '薄荷绿', hex: '#6AE8C8' },
+        { name: '暖橙', hex: '#E87A4A' },
+    ];
+
+    // ===== State =====
+    const state = {
+        color: '#4A90D9',
+        texture: 'none',
+        brandText: '',
+        background: 'studio',
+        autoRotate: true,
+        shape: 'box',
+    };
+
+    // ===== Three.js Setup =====
+    // ===== WebGL Check =====
+    const testCanvas = document.createElement('canvas');
+    const hasWebGL = !!(testCanvas.getContext('webgl2') || testCanvas.getContext('webgl'));
+    if (!hasWebGL) {
+        document.getElementById('canvas-container').innerHTML =
+            '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#888;font-size:18px;text-align:center;padding:40px;">' +
+            '<div><p style="font-size:48px;margin-bottom:16px;">🖥️</p>' +
+            '<p>您的浏览器不支持 WebGL</p>' +
+            '<p style="font-size:14px;margin-top:8px;color:#555;">请使用支持 WebGL 的浏览器（Chrome / Firefox / Safari）打开此页面</p></div></div>';
+        return;
+    }
+
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(3, 2.5, 4);
+
+    const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: false,
+        preserveDrawingBuffer: true,
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    container.appendChild(renderer.domElement);
+
+    // Controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 1.5;
+    controls.minDistance = 2;
+    controls.maxDistance = 10;
+    controls.maxPolarAngle = Math.PI / 2 + 0.3;
+    controls.target.set(0, 0.6, 0);
+
+    // ===== Lighting =====
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+
+    const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    mainLight.position.set(4, 6, 4);
+    mainLight.castShadow = true;
+    mainLight.shadow.mapSize.width = 2048;
+    mainLight.shadow.mapSize.height = 2048;
+    mainLight.shadow.camera.near = 0.5;
+    mainLight.shadow.camera.far = 20;
+    mainLight.shadow.camera.left = -5;
+    mainLight.shadow.camera.right = 5;
+    mainLight.shadow.camera.top = 5;
+    mainLight.shadow.camera.bottom = -5;
+    mainLight.shadow.bias = -0.001;
+    mainLight.shadow.radius = 4;
+    scene.add(mainLight);
+
+    const fillLight = new THREE.DirectionalLight(0x8ab4f8, 0.4);
+    fillLight.position.set(-3, 3, -2);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0xffc0cb, 0.3);
+    rimLight.position.set(0, 2, -4);
+    scene.add(rimLight);
+
+    // ===== Environment Map (procedural) =====
+    function createEnvMap() {
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        pmremGenerator.compileEquirectangularShader();
+
+        const envScene = new THREE.Scene();
+        const envGeo = new THREE.SphereGeometry(50, 32, 32);
+        const envCanvas = document.createElement('canvas');
+        envCanvas.width = 1024;
+        envCanvas.height = 512;
+        const ctx = envCanvas.getContext('2d');
+        const grad = ctx.createLinearGradient(0, 0, 0, 512);
+        grad.addColorStop(0, '#1a1a2e');
+        grad.addColorStop(0.4, '#2d2d44');
+        grad.addColorStop(0.6, '#3d3d5c');
+        grad.addColorStop(1, '#16213e');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1024, 512);
+
+        // Add some soft light spots
+        for (let i = 0; i < 6; i++) {
+            const x = Math.random() * 1024;
+            const y = Math.random() * 256 + 50;
+            const r = Math.random() * 80 + 40;
+            const radGrad = ctx.createRadialGradient(x, y, 0, x, y, r);
+            radGrad.addColorStop(0, 'rgba(255,255,255,0.15)');
+            radGrad.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = radGrad;
+            ctx.fillRect(x - r, y - r, r * 2, r * 2);
+        }
+
+        const envTex = new THREE.CanvasTexture(envCanvas);
+        envTex.mapping = THREE.EquirectangularReflectionMapping;
+        const envMat = new THREE.MeshBasicMaterial({ map: envTex, side: THREE.BackSide });
+        envScene.add(new THREE.Mesh(envGeo, envMat));
+
+        const envMap = pmremGenerator.fromScene(envScene, 0.04).texture;
+        pmremGenerator.dispose();
+        return envMap;
+    }
+
+    const envMap = createEnvMap();
+    scene.environment = envMap;
+
+    // ===== Platform / Desk =====
+    let platformGroup = new THREE.Group();
+    scene.add(platformGroup);
+
+    function createPlatform() {
+        // Remove old
+        while (platformGroup.children.length) {
+            const child = platformGroup.children[0];
+            child.geometry?.dispose();
+            child.material?.dispose();
+            platformGroup.remove(child);
+        }
+
+        // Table surface
+        const tableGeo = new THREE.CylinderGeometry(2.5, 2.5, 0.08, 64);
+        const tableMat = new THREE.MeshStandardMaterial({
+            color: 0x8B7355,
+            roughness: 0.6,
+            metalness: 0.05,
+            envMap: envMap,
+        });
+        const table = new THREE.Mesh(tableGeo, tableMat);
+        table.position.y = -0.04;
+        table.receiveShadow = true;
+        platformGroup.add(table);
+
+        // Shadow catcher plane
+        const shadowGeo = new THREE.PlaneGeometry(8, 8);
+        const shadowMat = new THREE.ShadowMaterial({ opacity: 0.15 });
+        const shadowPlane = new THREE.Mesh(shadowGeo, shadowMat);
+        shadowPlane.rotation.x = -Math.PI / 2;
+        shadowPlane.position.y = 0.001;
+        shadowPlane.receiveShadow = true;
+        platformGroup.add(shadowPlane);
+    }
+    createPlatform();
+
+    // ===== Packaging Object =====
+    let packagingMesh = null;
+    let packagingMaterial = null;
+    let textureCanvas = document.createElement('canvas');
+    textureCanvas.width = 1024;
+    textureCanvas.height = 1024;
+    let textureCtx = textureCanvas.getContext('2d');
+    let canvasTexture = new THREE.CanvasTexture(textureCanvas);
+    canvasTexture.colorSpace = THREE.SRGBColorSpace;
+
+    function createMaterial() {
+        packagingMaterial = new THREE.MeshPhysicalMaterial({
+            color: new THREE.Color(state.color),
+            roughness: 0.35,
+            metalness: 0.05,
+            clearcoat: 0.3,
+            clearcoatRoughness: 0.2,
+            envMap: envMap,
+            envMapIntensity: 0.6,
+        });
+        return packagingMaterial;
+    }
+
+    function createPackaging() {
+        if (packagingMesh) {
+            scene.remove(packagingMesh);
+            packagingMesh.geometry.dispose();
+        }
+
+        let geometry;
+        switch (state.shape) {
+            case 'box':
+                geometry = new THREE.BoxGeometry(1, 1.4, 0.6, 4, 4, 4);
+                break;
+            case 'cylinder':
+                geometry = new THREE.CylinderGeometry(0.45, 0.45, 1.4, 32, 4, false);
+                break;
+            case 'bag':
+                // Create a bag-like shape using a modified box with rounded edges
+                geometry = new THREE.BoxGeometry(0.9, 1.5, 0.35, 8, 8, 4);
+                const positions = geometry.attributes.position;
+                for (let i = 0; i < positions.count; i++) {
+                    const y = positions.getY(i);
+                    const normalizedY = (y + 0.75) / 1.5; // 0 to 1
+                    // Pinch at top
+                    if (normalizedY > 0.85) {
+                        const pinch = 1 - (normalizedY - 0.85) / 0.15 * 0.4;
+                        positions.setX(i, positions.getX(i) * pinch);
+                        positions.setZ(i, positions.getZ(i) * pinch);
+                    }
+                    // Slight bulge in middle
+                    if (normalizedY > 0.2 && normalizedY < 0.7) {
+                        const bulge = 1 + 0.08 * Math.sin((normalizedY - 0.2) / 0.5 * Math.PI);
+                        positions.setZ(i, positions.getZ(i) * bulge);
+                    }
+                }
+                geometry.computeVertexNormals();
+                break;
+        }
+
+        if (!packagingMaterial) createMaterial();
+        packagingMesh = new THREE.Mesh(geometry, packagingMaterial);
+        packagingMesh.position.y = 0.7 + 0.04;
+        packagingMesh.castShadow = true;
+        packagingMesh.receiveShadow = true;
+        scene.add(packagingMesh);
+    }
+
+    createPackaging();
+
+    // ===== Texture Generator =====
+    function generateTexture() {
+        const w = textureCanvas.width;
+        const h = textureCanvas.height;
+        const ctx = textureCtx;
+
+        // Base color
+        ctx.fillStyle = state.color;
+        ctx.fillRect(0, 0, w, h);
+
+        const baseColor = new THREE.Color(state.color);
+        const hsl = {};
+        baseColor.getHSL(hsl);
+        const isLight = hsl.l > 0.6;
+        const patternColor = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.1)';
+        const patternColorStrong = isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.15)';
+
+        switch (state.texture) {
+            case 'stripes':
+                ctx.strokeStyle = patternColor;
+                ctx.lineWidth = 3;
+                for (let i = -h; i < w + h; i += 28) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, 0);
+                    ctx.lineTo(i + h, h);
+                    ctx.stroke();
+                }
+                break;
+
+            case 'dots':
+                ctx.fillStyle = patternColor;
+                const dotR = 8;
+                const dotSpace = 40;
+                for (let x = dotSpace / 2; x < w; x += dotSpace) {
+                    for (let y = dotSpace / 2; y < h; y += dotSpace) {
+                        const offsetX = (Math.floor(y / dotSpace) % 2) * (dotSpace / 2);
+                        ctx.beginPath();
+                        ctx.arc(x + offsetX, y, dotR, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+                break;
+
+            case 'grid':
+                ctx.strokeStyle = patternColor;
+                ctx.lineWidth = 1.5;
+                const gridSize = 40;
+                for (let x = 0; x < w; x += gridSize) {
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+                }
+                for (let y = 0; y < h; y += gridSize) {
+                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+                }
+                break;
+
+            case 'gradient':
+                const grad = ctx.createLinearGradient(0, 0, 0, h);
+                const lighter = baseColor.clone();
+                lighter.offsetHSL(0, 0, 0.15);
+                const darker = baseColor.clone();
+                darker.offsetHSL(0, 0, -0.15);
+                grad.addColorStop(0, '#' + lighter.getHexString());
+                grad.addColorStop(1, '#' + darker.getHexString());
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, w, h);
+                break;
+
+            case 'geometric':
+                ctx.strokeStyle = patternColorStrong;
+                ctx.lineWidth = 2;
+                const triSize = 60;
+                for (let row = 0; row < h / triSize + 1; row++) {
+                    for (let col = 0; col < w / triSize + 1; col++) {
+                        const x = col * triSize + (row % 2) * (triSize / 2);
+                        const y = row * triSize;
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(x + triSize / 2, y + triSize);
+                        ctx.lineTo(x - triSize / 2, y + triSize);
+                        ctx.closePath();
+                        ctx.stroke();
+                    }
+                }
+                break;
+        }
+
+        // Brand text
+        if (state.brandText) {
+            const textColor = isLight ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.85)';
+            ctx.save();
+            ctx.fillStyle = textColor;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Main brand name
+            const fontSize = Math.min(80, w / (state.brandText.length * 0.8));
+            ctx.font = `700 ${fontSize}px Inter, -apple-system, sans-serif`;
+            ctx.fillText(state.brandText, w / 2, h / 2);
+
+            // Subtle underline
+            const metrics = ctx.measureText(state.brandText);
+            ctx.strokeStyle = textColor;
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.3;
+            ctx.beginPath();
+            ctx.moveTo(w / 2 - metrics.width / 2, h / 2 + fontSize / 2 + 8);
+            ctx.lineTo(w / 2 + metrics.width / 2, h / 2 + fontSize / 2 + 8);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        canvasTexture.needsUpdate = true;
+    }
+
+    function applyTexture() {
+        if (state.texture === 'none' && !state.brandText) {
+            packagingMaterial.map = null;
+            packagingMaterial.color.set(state.color);
+        } else {
+            generateTexture();
+            packagingMaterial.map = canvasTexture;
+            packagingMaterial.color.set(0xffffff);
+        }
+        packagingMaterial.needsUpdate = true;
+    }
+
+    // ===== Background Scenes =====
+    let bgObjects = new THREE.Group();
+    scene.add(bgObjects);
+
+    function clearBgObjects() {
+        bgObjects.traverse(child => {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+                if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+                else child.material.dispose();
+            }
+        });
+        while (bgObjects.children.length) bgObjects.remove(bgObjects.children[0]);
+    }
+
+    function setBackground(bgType) {
+        clearBgObjects();
+
+        switch (bgType) {
+            case 'studio':
+                scene.background = new THREE.Color(0x1a1a1a);
+                // Infinite sweep look
+                const sweepGeo = new THREE.PlaneGeometry(20, 20);
+                const sweepMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
+                const sweep = new THREE.Mesh(sweepGeo, sweepMat);
+                sweep.rotation.x = -Math.PI / 2;
+                sweep.position.y = -0.05;
+                sweep.receiveShadow = true;
+                bgObjects.add(sweep);
+
+                const wallGeo = new THREE.PlaneGeometry(20, 10);
+                const wallMat = new THREE.MeshStandardMaterial({ color: 0x1e1e1e, roughness: 0.9 });
+                const wall = new THREE.Mesh(wallGeo, wallMat);
+                wall.position.set(0, 4.9, -6);
+                bgObjects.add(wall);
+
+                // Update table to dark
+                platformGroup.children[0].material.color.set(0x333333);
+                platformGroup.children[0].material.roughness = 0.4;
+                platformGroup.children[0].material.metalness = 0.1;
+                break;
+
+            case 'kitchen':
+                scene.background = new THREE.Color(0xf5f0e6);
+                ambientLight.intensity = 0.5;
+                mainLight.intensity = 1.0;
+
+                // Warm wooden table
+                platformGroup.children[0].material.color.set(0x8B7355);
+                platformGroup.children[0].material.roughness = 0.7;
+                platformGroup.children[0].material.metalness = 0.0;
+
+                // Floor
+                const floorGeo = new THREE.PlaneGeometry(20, 20);
+                const floorMat = new THREE.MeshStandardMaterial({ color: 0xe8dcc8, roughness: 0.9 });
+                const floor = new THREE.Mesh(floorGeo, floorMat);
+                floor.rotation.x = -Math.PI / 2;
+                floor.position.y = -0.05;
+                floor.receiveShadow = true;
+                bgObjects.add(floor);
+
+                // Wall
+                const kWallGeo = new THREE.PlaneGeometry(20, 10);
+                const kWallMat = new THREE.MeshStandardMaterial({ color: 0xf0e8d6, roughness: 0.95 });
+                const kWall = new THREE.Mesh(kWallGeo, kWallMat);
+                kWall.position.set(0, 4.9, -5);
+                bgObjects.add(kWall);
+
+                // Small decorative items - a cup
+                const cupGeo = new THREE.CylinderGeometry(0.12, 0.1, 0.28, 16);
+                const cupMat = new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.3 });
+                const cup = new THREE.Mesh(cupGeo, cupMat);
+                cup.position.set(1.5, 0.18, 0.8);
+                cup.castShadow = true;
+                bgObjects.add(cup);
+
+                // A small plant
+                const potGeo = new THREE.CylinderGeometry(0.15, 0.12, 0.2, 16);
+                const potMat = new THREE.MeshStandardMaterial({ color: 0xB87333, roughness: 0.8 });
+                const pot = new THREE.Mesh(potGeo, potMat);
+                pot.position.set(-1.3, 0.14, 0.5);
+                pot.castShadow = true;
+                bgObjects.add(pot);
+
+                const leafGeo = new THREE.SphereGeometry(0.2, 8, 8);
+                const leafMat = new THREE.MeshStandardMaterial({ color: 0x4a7c59, roughness: 0.8 });
+                const leaf = new THREE.Mesh(leafGeo, leafMat);
+                leaf.position.set(-1.3, 0.38, 0.5);
+                leaf.scale.y = 1.3;
+                leaf.castShadow = true;
+                bgObjects.add(leaf);
+                break;
+
+            case 'nature':
+                scene.background = new THREE.Color(0xc8e6c9);
+                ambientLight.intensity = 0.6;
+                mainLight.intensity = 0.9;
+
+                // Green-ish platform (stone)
+                platformGroup.children[0].material.color.set(0x9E9E9E);
+                platformGroup.children[0].material.roughness = 0.85;
+                platformGroup.children[0].material.metalness = 0.0;
+
+                // Ground
+                const gGeo = new THREE.PlaneGeometry(20, 20);
+                const gMat = new THREE.MeshStandardMaterial({ color: 0x7cb342, roughness: 0.95 });
+                const ground = new THREE.Mesh(gGeo, gMat);
+                ground.rotation.x = -Math.PI / 2;
+                ground.position.y = -0.05;
+                ground.receiveShadow = true;
+                bgObjects.add(ground);
+
+                // Some simple "bushes"
+                for (let i = 0; i < 5; i++) {
+                    const bushGeo = new THREE.SphereGeometry(0.3 + Math.random() * 0.3, 8, 8);
+                    const bushMat = new THREE.MeshStandardMaterial({
+                        color: new THREE.Color().setHSL(0.3 + Math.random() * 0.05, 0.5, 0.35 + Math.random() * 0.1),
+                        roughness: 0.9,
+                    });
+                    const bush = new THREE.Mesh(bushGeo, bushMat);
+                    const angle = (i / 5) * Math.PI * 2;
+                    bush.position.set(
+                        Math.cos(angle) * (3 + Math.random()),
+                        0.15 + Math.random() * 0.1,
+                        Math.sin(angle) * (3 + Math.random())
+                    );
+                    bush.castShadow = true;
+                    bgObjects.add(bush);
+                }
+                break;
+
+            case 'minimal':
+                scene.background = new THREE.Color(0xfafafa);
+                ambientLight.intensity = 0.7;
+                mainLight.intensity = 0.8;
+
+                platformGroup.children[0].material.color.set(0xe0e0e0);
+                platformGroup.children[0].material.roughness = 0.3;
+                platformGroup.children[0].material.metalness = 0.05;
+
+                const mFloorGeo = new THREE.PlaneGeometry(20, 20);
+                const mFloorMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.9 });
+                const mFloor = new THREE.Mesh(mFloorGeo, mFloorMat);
+                mFloor.rotation.x = -Math.PI / 2;
+                mFloor.position.y = -0.05;
+                mFloor.receiveShadow = true;
+                bgObjects.add(mFloor);
+                break;
+        }
+    }
+
+    setBackground('studio');
+
+    // ===== UI Bindings =====
+
+    // Color grid
+    const colorGrid = document.getElementById('colorGrid');
+    COLORS.forEach((c, i) => {
+        const swatch = document.createElement('div');
+        swatch.className = 'color-swatch' + (c.hex === state.color ? ' active' : '');
+        swatch.style.background = c.hex;
+        swatch.title = c.name;
+        swatch.addEventListener('click', () => {
+            document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+            swatch.classList.add('active');
+            state.color = c.hex;
+            document.getElementById('customColor').value = c.hex;
+            updateColor();
+        });
+        colorGrid.appendChild(swatch);
+    });
+
+    // Custom color
+    document.getElementById('customColor').addEventListener('input', (e) => {
+        state.color = e.target.value;
+        document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+        updateColor();
+    });
+
+    function updateColor() {
+        if (state.texture === 'none' && !state.brandText) {
+            packagingMaterial.color.set(state.color);
+        } else {
+            applyTexture();
+        }
+    }
+
+    // Texture grid
+    document.querySelectorAll('.texture-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.texture-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.texture = btn.dataset.texture;
+            applyTexture();
+        });
+    });
+
+    // Brand text
+    document.getElementById('brandText').addEventListener('input', (e) => {
+        state.brandText = e.target.value;
+        applyTexture();
+    });
+
+    // Background
+    document.querySelectorAll('.bg-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.bg-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.background = btn.dataset.bg;
+            setBackground(state.background);
+        });
+    });
+
+    // Shape
+    document.querySelectorAll('.shape-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.shape = btn.dataset.shape;
+            createPackaging();
+            applyTexture();
+        });
+    });
+
+    // Auto-rotate toggle
+    document.getElementById('autoRotateToggle').addEventListener('click', function() {
+        state.autoRotate = !state.autoRotate;
+        this.classList.toggle('active');
+        controls.autoRotate = state.autoRotate;
+    });
+
+    // Screenshot
+    document.getElementById('screenshotBtn').addEventListener('click', () => {
+        renderer.render(scene, camera);
+        const link = document.createElement('a');
+        link.download = 'packaging-3d-' + Date.now() + '.png';
+        link.href = renderer.domElement.toDataURL('image/png');
+        link.click();
+    });
+
+    // ===== Animation Loop =====
+    const clock = new THREE.Clock();
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        const elapsed = clock.getElapsedTime();
+        controls.update();
+
+        // Gentle floating animation
+        if (packagingMesh) {
+            packagingMesh.position.y = 0.74 + Math.sin(elapsed * 1.2) * 0.03;
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // ===== Resize Handler =====
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ===== Hover Effect =====
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let isHovered = false;
+
+    renderer.domElement.addEventListener('mousemove', (e) => {
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObject(packagingMesh);
+
+        if (intersects.length > 0 && !isHovered) {
+            isHovered = true;
+            document.body.style.cursor = 'grab';
+            packagingMaterial.clearcoat = 0.6;
+            packagingMaterial.envMapIntensity = 0.9;
+        } else if (intersects.length === 0 && isHovered) {
+            isHovered = false;
+            document.body.style.cursor = 'default';
+            packagingMaterial.clearcoat = 0.3;
+            packagingMaterial.envMapIntensity = 0.6;
+        }
+    });
+
+})();
+</script>
+</body>
+</html>
