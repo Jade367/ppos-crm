@@ -671,7 +671,7 @@
         const uname = username.trim().toLowerCase();
         const { data: profile, error } = await supabase.from('profiles').select('*').eq('username', uname).single();
         if (error || !profile) return { error: { message: '用户不存在 User not found' } };
-        console.log('[PPOS] Login debug — DB hash:', JSON.stringify(profile.password_hash), '| Input hash:', JSON.stringify(pwHash), '| Match:', profile.password_hash === pwHash, '| DB len:', (profile.password_hash||'').length, '| Input len:', pwHash.length);
+        // Password hash comparison (debug logging removed for security)
         if (profile.password_hash !== pwHash) return { error: { message: `密码错误 Wrong password` } };
         const user = {
             id: profile.id,
@@ -6199,6 +6199,7 @@
         // Payment records state (local to this card)
         const [payInput, setPayInput] = React.useState('');
         const [payNote, setPayNote] = React.useState('');
+        const [isSaving, setIsSaving] = React.useState(false);
 
         return (
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden fade-in hover:shadow-md transition-shadow">
@@ -6316,17 +6317,25 @@
                                             <div style={{fontSize:'9px',color:'#bbb',flexShrink:0}}>{rec.date}</div>
                                             {onUpdateOrders && ps !== 'fully_paid' && (
                                                 <button
-                                                    onClick={() => {
-                                                        const newRecs = paymentRecords.filter((_, i) => i !== ri);
-                                                        const newTP = newRecs.reduce((s,r)=>s+(r.amount||0),0);
-                                                        const newPS = newTP <= 0 ? 'unpaid' : newTP >= total ? 'fully_paid' : 'deposit_paid';
-                                                        const newCS = {...(order.costSnapshot||{}), _paymentRecords: newRecs};
-                                                        const updated = (allOrdersForCustomer||[]).map(o => o.id===order.id ? {...o, depositAmount:newTP, balanceAmount:Math.max(0,total-newTP), paymentStatus:newPS, costSnapshot:newCS} : o);
-                                                        onUpdateOrders(updated);
-                                                        if (showToast) showToast('收款记录已删除');
+                                                    onClick={async () => {
+                                                        if (isSaving) return;
+                                                        setIsSaving(true);
+                                                        try {
+                                                            const newRecs = paymentRecords.filter((_, i) => i !== ri);
+                                                            const newTP = newRecs.reduce((s,r)=>s+(r.amount||0),0);
+                                                            const newPS = newTP <= 0 ? 'unpaid' : newTP >= total ? 'fully_paid' : 'deposit_paid';
+                                                            const newCS = {...(order.costSnapshot||{}), _paymentRecords: newRecs};
+                                                            const updated = (allOrdersForCustomer||[]).map(o => o.id===order.id ? {...o, depositAmount:newTP, balanceAmount:Math.max(0,total-newTP), paymentStatus:newPS, costSnapshot:newCS} : o);
+                                                            await onUpdateOrders(updated);
+                                                            if (showToast) showToast('收款记录已删除 Payment deleted');
+                                                        } catch (e) {
+                                                            console.error('[PPOS] Delete payment error:', e);
+                                                        } finally {
+                                                            setIsSaving(false);
+                                                        }
                                                     }}
-                                                    style={{marginLeft:'8px',fontSize:'9px',color:'#ddd',background:'none',border:'none',cursor:'pointer',padding:'1px 3px'}}
-                                                    title="删除此记录"
+                                                    style={{marginLeft:'8px',fontSize:'9px',color: isSaving ? '#eee' : '#ddd',background:'none',border:'none',cursor: isSaving ? 'not-allowed' : 'pointer',padding:'1px 3px'}}
+                                                    title="删除此记录 Delete record"
                                                 >✕</button>
                                             )}
                                         </div>
@@ -6362,24 +6371,33 @@
                                     </div>
                                     <div style={{display:'flex',gap:'5px'}}>
                                         <button
-                                            disabled={!isDirty}
-                                            onClick={() => {
-                                                const amt = Math.max(0, Math.min(parseFloat(payInput)||0, total));
+                                            disabled={!isDirty || isSaving}
+                                            onClick={async () => {
+                                                if (isSaving) return;
+                                                const remaining = Math.max(0, total - totalPaid);
+                                                const amt = Math.max(0, Math.min(parseFloat(payInput)||0, remaining));
                                                 if (amt <= 0) return;
-                                                const today = new Date().toISOString().slice(0,10);
-                                                const newRec = { date: today, amount: amt, note: payNote.trim() || '收款' };
-                                                const newRecs = [...paymentRecords, newRec];
-                                                const newTP = newRecs.reduce((s,r)=>s+(r.amount||0),0);
-                                                const newPS = newTP >= total ? 'fully_paid' : 'deposit_paid';
-                                                const newCS = {...(order.costSnapshot||{}), _paymentRecords: newRecs};
-                                                const updated = (allOrdersForCustomer||[]).map(o => o.id===order.id ? {...o, depositAmount:newTP, balanceAmount:Math.max(0,total-newTP), paymentStatus:newPS, costSnapshot:newCS} : o);
-                                                onUpdateOrders(updated);
-                                                setPayInput('');
-                                                setPayNote('');
-                                                if (showToast) showToast(`✓ 已登记收款 ¥${amt.toLocaleString()}${payNote?' · '+payNote:''}`);
+                                                setIsSaving(true);
+                                                try {
+                                                    const today = new Date().toISOString().slice(0,10);
+                                                    const newRec = { date: today, amount: amt, note: payNote.trim() || '收款' };
+                                                    const newRecs = [...paymentRecords, newRec];
+                                                    const newTP = newRecs.reduce((s,r)=>s+(r.amount||0),0);
+                                                    const newPS = newTP >= total ? 'fully_paid' : 'deposit_paid';
+                                                    const newCS = {...(order.costSnapshot||{}), _paymentRecords: newRecs};
+                                                    const updated = (allOrdersForCustomer||[]).map(o => o.id===order.id ? {...o, depositAmount:newTP, balanceAmount:Math.max(0,total-newTP), paymentStatus:newPS, costSnapshot:newCS} : o);
+                                                    await onUpdateOrders(updated);
+                                                    setPayInput('');
+                                                    setPayNote('');
+                                                    if (showToast) showToast(`✓ 已登记收款 ¥${amt.toLocaleString()}${payNote?' · '+payNote:''}`);
+                                                } catch (e) {
+                                                    console.error('[PPOS] Payment record error:', e);
+                                                } finally {
+                                                    setIsSaving(false);
+                                                }
                                             }}
-                                            style={{flex:1,fontSize:'11px',fontWeight:700,color:isDirty?'#fff':'#ccc',background:isDirty?'#16a34a':'#f5f5f5',border:'none',borderRadius:'6px',padding:'5px 8px',cursor:isDirty?'pointer':'not-allowed',transition:'all 0.2s'}}
-                                        >✓ 确认登记</button>
+                                            style={{flex:1,fontSize:'11px',fontWeight:700,color:(isDirty && !isSaving)?'#fff':'#ccc',background:(isDirty && !isSaving)?'#16a34a':'#f5f5f5',border:'none',borderRadius:'6px',padding:'5px 8px',cursor:(isDirty && !isSaving)?'pointer':'not-allowed',transition:'all 0.2s'}}
+                                        >{isSaving ? '保存中...' : '✓ 确认登记'}</button>
                                         {isDirty && (
                                             <button
                                                 onClick={() => { setPayInput(''); setPayNote(''); }}
@@ -6809,9 +6827,6 @@
                 showToast('报价单已保存! Quote saved!');
             }
         };
-
-        // ===== Deposit input editing (keyed by orderId) =====
-        const [depositInputs, setDepositInputs] = useState({});
 
         // ===== Edit Order Slide-over =====
         const [editOrderOpen, setEditOrderOpen] = useState(false);
@@ -9623,26 +9638,39 @@
             return null;
         }, [allOrders, quoteHistory, customers, purchasedItems]);
 
-        // Update orders for a specific customer
-        const updateCustomerOrders = useCallback((customerId, orders) => {
-            // Read existing IDs BEFORE calling setState (no side effects inside setter)
-            const prevIds = new Set((allOrders[customerId] || []).map(o => o.id));
-            // Persist each order: insert new ones, update existing ones
-            (orders || []).forEach(o => {
+        // Update orders for a specific customer (async with error handling + rollback)
+        const updateCustomerOrders = useCallback(async (customerId, orders) => {
+            // Snapshot previous state for rollback
+            const prevOrders = allOrders[customerId] || [];
+            const prevIds = new Set(prevOrders.map(o => o.id));
+            // Optimistic update (instant UI feedback)
+            setAllOrders(prev => ({ ...prev, [customerId]: orders }));
+            // Persist each order with proper error handling
+            const errors = [];
+            const promises = (orders || []).map(async (o) => {
                 const orderData = { ...o, customerId };
-                if (prevIds.has(o.id)) {
-                    // Existing order → update
-                    db.orders.update(o.id, orderData).catch(e => console.warn('[PPOS] Update order error:', e));
-                } else {
-                    // New order → insert
-                    db.orders.insert(orderData).catch(e => {
-                        // Fallback: try update if insert fails (e.g. already exists in DB)
-                        db.orders.update(o.id, orderData).catch(e2 => console.warn('[PPOS] Insert/update order error:', e2));
-                    });
+                try {
+                    if (prevIds.has(o.id)) {
+                        await db.orders.update(o.id, orderData);
+                    } else {
+                        try {
+                            await db.orders.insert(orderData);
+                        } catch (insertErr) {
+                            // Fallback: try update if insert fails (e.g. already exists in DB)
+                            await db.orders.update(o.id, orderData);
+                        }
+                    }
+                } catch (e) {
+                    console.error('[PPOS] Order persist error:', o.id, e);
+                    errors.push(o.id);
                 }
             });
-            // Update local state
-            setAllOrders(prev => ({ ...prev, [customerId]: orders }));
+            await Promise.all(promises);
+            if (errors.length > 0) {
+                // Rollback local state on failure
+                setAllOrders(prev => ({ ...prev, [customerId]: prevOrders }));
+                showToast(`⚠ 保存失败，数据已回滚 Save failed, changes reverted (${errors.length} order${errors.length > 1 ? 's' : ''})`);
+            }
         }, [allOrders]);
 
         // Get all orders across all customers (for global orders page)
@@ -9923,17 +9951,17 @@
                 });
             } catch (err) {
                 console.error('[PPOS] addQuoteRecord error:', err);
-                // Fallback: still update local state
-                setQuoteHistory(prev => {
-                    const existing = prev[customerId] || [];
-                    const nextId = existing.length > 0 ? Math.max(...existing.map(q => q.id)) + 1 : 1;
-                    return { ...prev, [customerId]: [{ ...record, id: nextId }, ...existing] };
-                });
+                showToast('⚠ 报价保存失败，请重试 Quote save failed, please retry');
             }
         }, []);
 
-        // Update a quote's status (draft → sent → accepted)
+        // Update a quote's status (draft → sent → accepted) with rollback on failure
         const updateQuoteStatus = useCallback(async (customerId, quoteId, newStatus) => {
+            // Snapshot for rollback
+            const prevQuotes = quoteHistory[customerId] || [];
+            const oldQuote = prevQuotes.find(q => q.id === quoteId);
+            const oldStatus = oldQuote ? oldQuote.status : null;
+            // Optimistic update
             setQuoteHistory(prev => {
                 const quotes = prev[customerId] || [];
                 return { ...prev, [customerId]: quotes.map(q => q.id === quoteId ? { ...q, status: newStatus } : q) };
@@ -9942,11 +9970,23 @@
                 await db.quotes.update(quoteId, { status: newStatus });
             } catch (err) {
                 console.error('[PPOS] updateQuoteStatus error:', err);
+                // Rollback
+                if (oldStatus !== null) {
+                    setQuoteHistory(prev => {
+                        const quotes = prev[customerId] || [];
+                        return { ...prev, [customerId]: quotes.map(q => q.id === quoteId ? { ...q, status: oldStatus } : q) };
+                    });
+                }
+                showToast('⚠ 状态更新失败，已回滚 Status update failed, reverted');
             }
-        }, []);
+        }, [quoteHistory]);
 
-        // Update a quote record (edit items, note, shipping, tax)
+        // Update a quote record (edit items, note, shipping, tax) with rollback on failure
         const updateQuoteRecord = useCallback(async (customerId, quoteId, updatedFields) => {
+            // Snapshot for rollback
+            const prevQuotes = quoteHistory[customerId] || [];
+            const oldQuote = prevQuotes.find(q => q.id === quoteId);
+            // Optimistic update
             setQuoteHistory(prev => {
                 const quotes = (prev[customerId] || []).map(q => q.id === quoteId ? { ...q, ...updatedFields } : q);
                 return { ...prev, [customerId]: quotes };
@@ -9955,11 +9995,22 @@
                 await db.quotes.update(quoteId, updatedFields);
             } catch (err) {
                 console.error('[PPOS] updateQuoteRecord error:', err);
+                // Rollback to old quote
+                if (oldQuote) {
+                    setQuoteHistory(prev => {
+                        const quotes = (prev[customerId] || []).map(q => q.id === quoteId ? oldQuote : q);
+                        return { ...prev, [customerId]: quotes };
+                    });
+                }
+                showToast('⚠ 报价更新失败，已回滚 Quote update failed, reverted');
             }
-        }, []);
+        }, [quoteHistory]);
 
-        // Delete a single quote record (soft delete)
+        // Delete a single quote record (soft delete) with rollback on failure
         const deleteQuoteRecord = useCallback(async (customerId, quoteId) => {
+            // Snapshot for rollback
+            const prevQuotes = quoteHistory[customerId] || [];
+            // Optimistic delete
             setQuoteHistory(prev => {
                 const quotes = (prev[customerId] || []).filter(q => q.id !== quoteId);
                 return { ...prev, [customerId]: quotes };
@@ -9968,8 +10019,11 @@
                 await db.quotes.softDelete(quoteId);
             } catch (err) {
                 console.error('[PPOS] deleteQuoteRecord error:', err);
+                // Rollback: restore the deleted quote
+                setQuoteHistory(prev => ({ ...prev, [customerId]: prevQuotes }));
+                showToast('⚠ 删除失败，已恢复 Delete failed, restored');
             }
-        }, []);
+        }, [quoteHistory]);
 
         // Get selected customer object
         const selectedCustomer = selectedCustomerId ? customers.find(c => c.id === selectedCustomerId) : null;
