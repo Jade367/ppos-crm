@@ -1,0 +1,51 @@
+{
+  "$comment": "Human-approved dependencies. Enforced by scripts/guards/deps-allowlist.mjs and the Claude Code Bash hook. To add one: the agent writes a request in PROGRESS.md (name, purpose, npm URL, weekly downloads, alternatives); the human verifies the package is real and adds it here.",
+  "npm": {
+    "typescript": "compiler",
+    "@types/node": "Node types for tooling/config files",
+    "vitest": "unit + acceptance tests",
+    "@vitest/coverage-v8": "coverage",
+    "eslint": "lint",
+    "@eslint/js": "eslint recommended config",
+    "typescript-eslint": "TS lint rules (flat config)",
+    "globals": "eslint globals",
+    "eslint-plugin-react-hooks": "hooks rules",
+    "eslint-plugin-react-refresh": "vite react refresh rule",
+    "prettier": "formatting",
+    "vite": "frontend build",
+    "@vitejs/plugin-react": "React for Vite",
+    "vite-plugin-pwa": "merchant tablet PWA manifest/service worker",
+    "react": "UI",
+    "react-dom": "UI",
+    "@types/react": "types",
+    "@types/react-dom": "types",
+    "react-router": "routing (declarative mode)",
+    "tailwindcss": "styling (v4)",
+    "@tailwindcss/vite": "Tailwind v4 Vite plugin",
+    "@tanstack/react-query": "server state",
+    "@supabase/supabase-js": "Supabase client",
+    "zod": "validation schemas shared with edge functions",
+    "luxon": "Europe/London time handling",
+    "@types/luxon": "types",
+    "qrcode": "printable QR codes for shops",
+    "@types/qrcode": "types",
+    "@testing-library/react": "component tests",
+    "@testing-library/user-event": "component tests",
+    "@testing-library/jest-dom": "component test matchers",
+    "jsdom": "DOM for vitest",
+    "@playwright/test": "E2E (DOM/ARIA assertions)",
+    "supabase": "Supabase CLI as a dev dependency"
+  },
+  "deno": {
+    "npm:stripe": "Stripe server SDK — MUST be 23.0.0",
+    "npm:@supabase/supabase-js": "Supabase client inside edge functions",
+    "npm:zod": "validation",
+    "npm:luxon": "time handling",
+    "jsr:@std/assert": "deno test assertions",
+    "jsr:@std/testing": "deno test helpers"
+  },
+  "tools": {
+    "$comment": "Executables an agent may run through npx / pnpm dlx / pnpm exec.",
+    "list": ["supabase", "vitest", "tsc", "eslint", "prettier", "vite", "playwright", "@playwright/test", "@z_ai/coding-helper", "@z_ai/mcp-server"]
+  }
+}

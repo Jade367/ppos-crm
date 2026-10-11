@@ -1,0 +1,139 @@
+# Takeaway platform CI. PROTECTED: agents cannot edit this file (hooks + protected-paths check).
+# Every job is conditional on the code it checks existing, so the workflow works from phase 0 onwards.
+name: takeaway-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: takeaway-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guards:
+    name: guards (banned patterns, CJK, acceptance integrity, deps, protected paths)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Guards
+        run: node scripts/guards/run-all.mjs
+      - name: Protected paths (needs human label to pass)
+        if: github.event_name == 'pull_request'
+        run: node scripts/guards/protected-paths.mjs
+
+  node:
+    name: typecheck, lint, unit + acceptance tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        run: |
+          if [ -f package.json ] && [ -f pnpm-lock.yaml ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: pnpm/action-setup@v4
+        if: steps.detect.outputs.present == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.detect.outputs.present == 'true'
+        with:
+          node-version: 24
+          cache: pnpm
+      - if: steps.detect.outputs.present == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: steps.detect.outputs.present == 'true'
+        run: pnpm typecheck
+      - if: steps.detect.outputs.present == 'true'
+        run: pnpm lint
+      - if: steps.detect.outputs.present == 'true'
+        run: pnpm test
+      - if: steps.detect.outputs.present == 'false'
+        run: echo "No pnpm workspace yet (created by task P0-01) — skipping."
+
+  deno:
+    name: edge functions (deno check + deno test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        run: |
+          if [ -d supabase/functions ] && find supabase/functions -name '*.ts' | grep -q .; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: denoland/setup-deno@v2
+        if: steps.detect.outputs.present == 'true'
+        with:
+          deno-version: v2.x
+      - name: deno check
+        if: steps.detect.outputs.present == 'true'
+        working-directory: supabase/functions
+        run: |
+          files=$(find . -name '*.ts' -not -name '*.test.ts' -not -path '*/node_modules/*')
+          deno check $files
+      - name: deno test
+        if: steps.detect.outputs.present == 'true'
+        working-directory: supabase/functions
+        run: |
+          if find . -name '*.test.ts' | grep -q .; then deno test --allow-env --allow-net --allow-read; else echo "no function tests yet"; fi
+      - if: steps.detect.outputs.present == 'false'
+        run: echo "No edge functions yet — skipping."
+
+  db:
+    name: database (migrations + pgTAP RLS tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        run: |
+          if [ -f supabase/config.toml ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: supabase/setup-cli@v1
+        if: steps.detect.outputs.present == 'true'
+        with:
+          version: latest
+      - name: Start local Supabase (applies migrations + seed)
+        if: steps.detect.outputs.present == 'true'
+        run: supabase start
+      - name: pgTAP tests
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          if find supabase/tests -name '*.sql' 2>/dev/null | grep -q .; then supabase test db; else echo "no pgTAP tests yet"; fi
+      - name: Lint schema
+        if: steps.detect.outputs.present == 'true'
+        run: supabase db lint --level error
+      - if: steps.detect.outputs.present == 'false'
+        run: echo "No Supabase project yet (created by task P0-02) — skipping."
+
+  e2e:
+    name: end-to-end (Playwright, DOM/ARIA assertions)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [node]
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        run: |
+          if [ -f e2e/playwright.config.ts ] && [ -f pnpm-lock.yaml ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: pnpm/action-setup@v4
+        if: steps.detect.outputs.present == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.detect.outputs.present == 'true'
+        with:
+          node-version: 24
+          cache: pnpm
+      - if: steps.detect.outputs.present == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: steps.detect.outputs.present == 'true'
+        run: pnpm exec playwright install --with-deps chromium
+      - if: steps.detect.outputs.present == 'true'
+        run: pnpm e2e
+      - if: steps.detect.outputs.present == 'false'
+        run: echo "No e2e suite yet (created by task P0-04) — skipping."

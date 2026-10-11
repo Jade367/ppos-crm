@@ -1,0 +1,49 @@
+{
+  "$comment": "Single source of truth for path protection, used by .claude/hooks/* (local, per tool call) and scripts/guards/protected-paths.mjs (CI). Human-maintained. Globs: ** = any depth, * = within one path segment.",
+  "protected": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".npmrc",
+    ".claude/**",
+    ".github/**",
+    "scripts/guards/**",
+    "scripts/acceptance/**",
+    "docs/takeaway/**",
+    "**/tests/acceptance/**"
+  ],
+  "agentWritable": [
+    "docs/takeaway/PROGRESS.md",
+    "docs/takeaway/reference/versions.md",
+    "docs/takeaway/acceptance-proposals/**",
+    "docs/takeaway/adr/**",
+    "docs/takeaway/tasks/proposed/**",
+    "docs/takeaway/reviews/**"
+  ],
+  "legacy": [
+    "index.html",
+    "3d-packaging.html",
+    "supabase_schema.sql",
+    "migration_*.sql",
+    "import_*.sql"
+  ],
+  "appendOnly": [
+    "supabase/migrations/**"
+  ],
+  "rangedReadOnly": [
+    { "path": "index.html", "maxLines": 400 }
+  ],
+  "secretFiles": [
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    "supabase/.temp/**"
+  ],
+  "secretFileExceptions": [
+    ".env.example",
+    "**/.env.example"
+  ],
+  "approvalLabel": "protected-change-approved",
+  "overrideEnv": "PPOS_GUARD_OVERRIDE",
+  "legacyEnv": "PPOS_ALLOW_LEGACY"
+}

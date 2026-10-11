@@ -1,8 +1,22 @@
 .DS_Store
-.claude/
+# Claude Code: commit the shared project settings and hooks only
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+.claude/.state/
 *.log
 node_modules/
 .env
+.env.*
+!.env.example
 .agent/
 .agents/
 .cursor/
+# build / test output
+dist/
+coverage/
+playwright-report/
+test-results/
+.vercel/
+supabase/.temp/
+supabase/.branches/

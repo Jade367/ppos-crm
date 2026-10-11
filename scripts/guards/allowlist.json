@@ -1,0 +1,4 @@
+{
+  "$comment": "Human-approved exceptions to banned-patterns.mjs. Each entry: { \"rule\": \"<rule id>\", \"file\": \"<repo-relative path>\", \"reason\": \"...\", \"approvedBy\": \"<name>\", \"date\": \"YYYY-MM-DD\" }. Agents must not edit this file.",
+  "entries": []
+}

@@ -1,0 +1,21 @@
+{
+  "$comment": "Golden acceptance tests per task. src is relative to docs/takeaway/acceptance/, dest is where `pnpm acceptance:install <TASK>` copies it. Edited only by humans (directly or via scripts/acceptance/freeze.mjs).",
+  "P0-02": {
+    "command": "supabase test db",
+    "files": [
+      { "src": "P0-02/rls_enabled.test.sql", "dest": "supabase/tests/acceptance/rls_enabled.test.sql" }
+    ]
+  },
+  "P1-01": {
+    "command": "pnpm --filter @ppos/core test",
+    "files": [
+      { "src": "P1-01/pricing.acceptance.test.ts", "dest": "packages/core/tests/acceptance/pricing.acceptance.test.ts" }
+    ]
+  },
+  "P1-02": {
+    "command": "pnpm --filter @ppos/core test",
+    "files": [
+      { "src": "P1-02/order-state.acceptance.test.ts", "dest": "packages/core/tests/acceptance/order-state.acceptance.test.ts" }
+    ]
+  }
+}
