@@ -52,6 +52,7 @@ All of: every checklist item in the card's **Definition of Done**; `pnpm verify`
 - `packages/core` is pure: no I/O, no clock, no randomness. Pass `now` and config in as arguments.
 - Money is integer pence (`*_pence` / `*Pence`). Format only with `formatPence`.
 - One price calculator (`priceOrder` in `packages/core`) is used by both the UI and the server. The server always re-prices from the database.
+- If ADR-0002 chose the copy approach (option C), run `node scripts/dev/sync-core.mjs` after any change under `packages/core/src` and commit the copy; CI fails otherwise.
 - Keep files under ~300 lines. Prefer creating a new small file to growing a big one. For any file over 300 lines, use targeted `Edit`s, never a full rewrite.
 - Do only what the card asks. If you notice something else worth doing, note it under `## Follow-ups` in `PROGRESS.md`.
 - UI work: you cannot see the screen. Verify with Testing Library / Playwright assertions on roles, labels and text. The human checks visuals on the Vercel preview.

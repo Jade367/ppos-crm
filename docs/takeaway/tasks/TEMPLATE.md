@@ -4,7 +4,7 @@
 |---|---|
 | Phase | P? |
 | Depends on | <IDs, or —> |
-| Mode | `standard` \| `tests-first` (session A writes test proposals, human freezes, session B implements) \| `pass@2` (two independent attempts, keep the better) \| `human` |
+| Mode | `standard` \| `tests-first` (session A writes test proposals, human freezes, session B implements) \| `pass@2` (two independent attempts, keep the better) \| `review` (read-only; writes only docs/takeaway/reviews/, tasks/proposed/ and PROGRESS.md) \| `spike` (time-boxed experiment; result and evidence go into an ADR) \| `human` |
 | Reasoning effort | `high` (routine) \| `max` (design, debugging, security, money) |
 | Model | `glm-5.3` (never Flash for money, auth, RLS, Stripe or migrations) |
 | Session budget | ≤ N hours wall-clock / one task. If exceeded: checkpoint commit, write handoff, stop. |

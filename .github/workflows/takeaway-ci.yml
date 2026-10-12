@@ -4,6 +4,8 @@ name: takeaway-ci
 
 on:
   pull_request:
+    # labeled/unlabeled: adding `protected-change-approved` re-runs CI without an empty commit
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches: [main]
 
@@ -117,6 +119,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     needs: [node]
+    env:
+      # Dummy values: e2e tests stub every request to these URLs with Playwright page.route fixtures.
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_PUBLISHABLE_KEY: e2e-dummy-publishable-key
+      VITE_FUNCTIONS_URL: http://127.0.0.1:54321/functions/v1
     steps:
       - uses: actions/checkout@v4
       - id: detect

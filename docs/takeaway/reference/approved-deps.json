@@ -34,7 +34,8 @@
     "@testing-library/jest-dom": "component test matchers",
     "jsdom": "DOM for vitest",
     "@playwright/test": "E2E (DOM/ARIA assertions)",
-    "supabase": "Supabase CLI as a dev dependency"
+    "supabase": "Supabase CLI as a dev dependency",
+    "@axe-core/playwright": "automated accessibility checks in Playwright (WCAG 2.2 AA target)"
   },
   "deno": {
     "npm:stripe": "Stripe server SDK — MUST be 23.0.0",
@@ -46,6 +47,17 @@
   },
   "tools": {
     "$comment": "Executables an agent may run through npx / pnpm dlx / pnpm exec.",
-    "list": ["supabase", "vitest", "tsc", "eslint", "prettier", "vite", "playwright", "@playwright/test", "@z_ai/coding-helper", "@z_ai/mcp-server"]
+    "list": [
+      "supabase",
+      "vitest",
+      "tsc",
+      "eslint",
+      "prettier",
+      "vite",
+      "playwright",
+      "@playwright/test",
+      "@z_ai/coding-helper",
+      "@z_ai/mcp-server"
+    ]
   }
 }
