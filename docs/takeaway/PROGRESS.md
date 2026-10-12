@@ -28,6 +28,8 @@ _(things noticed but out of scope; the human decides whether they become task ca
 
 _(agents cannot edit plans, references, guards or golden tests — propose exact changes here)_
 
+- 2026-10-12 (setup session) — `docs/takeaway/03-execution-handbook.md` lines 140, 555, 817, 979, 1010 still say `pre-bash` cannot stop `gh pr create --label …`. That gap is now closed. Evidence (pre-bash fed each command as hook input): `BLOCKED gh pr create --label protected-change-approved`, `BLOCKED gh pr create -l …`, `allowed gh api graphql -f query='mutation{addLabelsToLabelable…}'`, `allowed gh api -X PUT repos/o/r/pulls/1/merge`, `allowed cd scripts/acceptance && node freeze.mjs …`. Proposed: replace the `gh pr create --label` example in those 5 lines with `gh api graphql` (label mutation). Keep G-16 (check who added the label) unchanged, because label changes are still possible through GraphQL.
+
 ## Dependency requests
 
 _(name, purpose, npm URL, weekly downloads, alternatives considered)_
